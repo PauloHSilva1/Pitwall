@@ -124,67 +124,83 @@ function Customizar() {
   const [plotData, setPlotData] = useState([]);
   const [polynomial, setPolynomial] = useState(""); // Armazena o polinômio gerado
 
+  const handleOpenSensor = async () => {
+    try {
+      // Abre o arquivo usando a API do Electron
+      const { filePath, fileContent } = await window.electronAPI.openSensor();
+
+      // Verifica se o conteúdo do arquivo foi retornado
+      if (fileContent) {
+        try {
+          // Tenta analisar o conteúdo como JSON
+          const jsonData = JSON.parse(fileContent);
+          //fazer a logica de tratamento do sensor
+        } catch (jsonError) {
+          console.error("Erro ao parsear o conteúdo do arquivo como JSON:", jsonError);
+        }
+      } else {
+        console.warn("O arquivo não contém conteúdo válido.");
+      }
+    } catch (error) {
+      // Log de erros no processo de abertura do arquivo
+      console.error("Erro ao abrir o arquivo:", error);
+    }
+  };
+
   const handlePlot = () => {
-    // Filtra os valores válidos
     const validX = xValues.filter((_, i) => checked[i] && xValues[i] !== "");
     const validY = yValues.filter((_, i) => checked[i] && yValues[i] !== "");
 
     if (validX.length < 2 || validY.length < 2) {
       alert("Forneça pelo menos dois pontos válidos para interpolação.");
-      
+    } else {
+      const xmin = Math.min(...validX);
+      const xmax = Math.max(...validX);
+
+      const interpolatedX = [];
+      const interpolatedY = [];
+      const step = (xmax - xmin) / 100;
+
+      for (let x = xmin; x <= xmax; x += step) {
+        interpolatedX.push(x);
+        interpolatedY.push(lagrangeInterpolation(validX, validY, x));
+      }
+
+      const polynomialStr = lagrangePolynomialFormatted(validX, validY);
+
+      setPlotData([
+        {
+          x: validX,
+          y: validY,
+          type: "scatter",
+          mode: "markers",
+          marker: { color: "red", size: 10 },
+          name: "Pontos",
+        },
+        {
+          x: interpolatedX,
+          y: interpolatedY,
+          type: "scatter",
+          mode: "lines",
+          line: { color: "blue" },
+          name: "Interpolação",
+        },
+      ]);
+
+      setPolynomial(polynomialStr);
     }
-    
-    else{const xmin = Math.min(...validX);
-    const xmax = Math.max(...validX);
-
-    // Gera os pontos da curva de interpolação
-    const interpolatedX = [];
-    const interpolatedY = [];
-    const step = (xmax - xmin) / 100; // Resolução da curva
-
-    for (let x = xmin; x <= xmax; x += step) {
-      interpolatedX.push(x);
-      interpolatedY.push(lagrangeInterpolation(validX, validY, x));
-    }
-
-    // Calcula o polinômio de Lagrange
-    const polynomialStr = lagrangePolynomialFormatted(validX, validY);
-
-    setPlotData([
-      {
-        x: validX,
-        y: validY,
-        type: "scatter",
-        mode: "markers",
-        marker: { color: "red", size: 10 },
-        name: "Pontos",
-      },
-      {
-        x: interpolatedX,
-        y: interpolatedY,
-        type: "scatter",
-        mode: "lines",
-        line: { color: "blue" },
-        name: "Interpolação",
-      },
-    ]);
-
-    setPolynomial(polynomialStr);} // Atualiza o estado com o polinômio gerado
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "row", paddingTop: "8vh", paddingLeft: "10vw", justifyContent: "center", alignItems: "center" }}>
-      {/* Div de Labels */}
       <div>
         {[...Array(20)].map((_, index) => (
           <Typography key={index} style={{ height: "2.88vh", marginTop: "0.03vh", marginRight: "0.3vw" }}>
             {index + 1}
           </Typography>
         ))}
-        
       </div>
 
-      {/* Div de Checkboxes */}
       <div style={{ display: "flex", flexDirection: "column", marginTop: "0.2vh" }}>
         {[...Array(20)].map((_, index) => (
           <StyledCheckbox
@@ -198,41 +214,51 @@ function Customizar() {
           />
         ))}
       </div>
-      
-      {/* Div de Campos para xValues */}
+
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {[...Array(20)].map((_, index) => (
-          <StyledTextField1
-            key={index}
-            value={xValues[index] || ""}
-            onChange={(e) => {
-              const updatedXValues = [...xValues];
-              updatedXValues[index] = parseFloat(e.target.value) || "";
-              setXValues(updatedXValues);
-            }}
-          />
-          
-        ))}
-      </div>
+  {[...Array(20)].map((_, index) => (
+    <StyledTextField1
+      key={index}
+      value={xValues[index] !== undefined && xValues[index] !== null ? xValues[index] : ""}
+      onChange={(e) => {
+        const value = e.target.value; // Permite qualquer entrada do usuário
+        const updatedXValues = [...xValues];
+        updatedXValues[index] = value; // Armazena diretamente o valor
+        setXValues(updatedXValues);
+      }}
+      onBlur={() => {
+        // Converte para número após perder o foco (se for válido)
+        const updatedXValues = xValues.map((val) =>
+          val !== "" && !isNaN(parseFloat(val)) ? parseFloat(val) : ""
+        );
+        setXValues(updatedXValues);
+      }}
+    />
+  ))}
+</div>
 
-      {/* Div de Campos para yValues */}
-      <div style={{ display: "flex", flexDirection: "column", paddingLeft: "0.4vw" }}>
-        {[...Array(20)].map((_, index) => (
-          <StyledTextField1
-            key={index}
-            value={yValues[index] || ""}
-            onChange={(e) => {
-              const updatedYValues = [...yValues];
-              updatedYValues[index] = parseFloat(e.target.value) || "";
-              setYValues(updatedYValues);
-            }}
-          />
-          
-        ))}
-        
-      </div>
+<div style={{ display: "flex", flexDirection: "column", paddingLeft: "0.4vw" }}>
+  {[...Array(20)].map((_, index) => (
+    <StyledTextField1
+      key={index}
+      value={yValues[index] !== undefined && yValues[index] !== null ? yValues[index] : ""}
+      onChange={(e) => {
+        const value = e.target.value;
+        const updatedYValues = [...yValues];
+        updatedYValues[index] = value;
+        setYValues(updatedYValues);
+      }}
+      onBlur={() => {
+        const updatedYValues = yValues.map((val) =>
+          val !== "" && !isNaN(parseFloat(val)) ? parseFloat(val) : ""
+        );
+        setYValues(updatedYValues);
+      }}
+    />
+  ))}
+</div>
 
-      {/* Gráfico com Plotly */}
+
       <div style={{ marginLeft: "20px" }}>
         <Card style={{ maxHeight: "58vh", maxWidth: "30vw" }}>
           <CardContent>
@@ -255,25 +281,18 @@ function Customizar() {
         )}
       </div>
 
-      {/* Botões */}
       <div style={{ padding: "5vw", display: "flex", flexDirection: "column" }}>
-        <StyledButton variant="contained">
-          Salvar sensor
-        </StyledButton>
-        <StyledButton variant="contained">
+        <StyledButton variant="contained">Salvar sensor</StyledButton>
+        <StyledButton variant="contained" onClick={handleOpenSensor}>
           Importar sensor
         </StyledButton>
-        <StyledButton variant="contained">
-          Exportar sensor
-        </StyledButton>
-        <StyledButton style={{marginTop:"30vh"}}variant="contained" onClick={handlePlot}>
+        <StyledButton variant="contained">Exportar sensor</StyledButton>
+        <StyledButton style={{ marginTop: "30vh" }} variant="contained" onClick={handlePlot}>
           Plotar
         </StyledButton>
-        
       </div>
     </div>
   );
 }
 
 export default Customizar;
-

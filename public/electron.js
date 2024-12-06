@@ -1,7 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const SerialPort = require('serialport');
+const exec = require('child_process')
+const openFile = require('./openFile.js');
+const saveFile = require('./saveFile.js')
+
+
 
 let mainWindow;
 let port; // Declare o port fora da função
@@ -66,3 +70,14 @@ ipcMain.handle('saveFile', async (event, jsonData, filePath) => {
     return false;
   }
 });
+
+ipcMain.handle('openSensor',async()=>{
+  saveFile()
+
+})
+
+ipcMain.handle('saveSensor',async(event,jsonData,filePath)=>{
+  openFile(filePath,jsonData)
+})
+
+
