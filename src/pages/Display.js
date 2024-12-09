@@ -4,10 +4,9 @@ import Menu from '../elements/Menu';
 import Dash from '../pages/Dash';
 import Customizar from '../pages/Customizar';
 import { Divider, TextField } from '@mui/material';
-import Pdm from '../pages/Pdm'
+import Pdm from './Pdm';
 import Maq from '../pages/Maq'
-
-
+import OutputConfig from './outputconfig';
 
 function Display() {
   const location = useLocation();
@@ -16,22 +15,28 @@ function Display() {
 
   return (
     <div style={{ backgroundColor: '#eeeeee', height: '100vh', width: '100vw' }}>
-      <div style={{ display: 'flex' }}>
-        <Menu setRenderAtual={setRenderAtual} /> {/* Passando setRenderAtual para o filho */}
-        <Divider 
-          orientation="vertical" 
-          style={{ marginLeft: '2vw', marginTop: '5vh', height: '90vh', borderWidth: '0.5px' }}
-        />
-        
-          <div>
-            {renderAtual === 1 && <Customizar />}
-            {renderAtual === 2 && <Dash />}
-            {renderAtual === 3 && <Pdm/>}
-            {renderAtual === 4 && <Maq/>}
-          </div>
-        
-      </div>
+  <div style={{ display: 'flex' }}>
+    {/* Menu Section */}
+    <Menu setRenderAtual={setRenderAtual} /> 
+
+    {/* Divider */}
+    <Divider 
+      orientation="vertical" 
+      style={{ marginLeft: '2vw', marginTop: '5vh', height: '90vh', borderWidth: '0.5px' }}
+    />
+
+    {/* Main Content Section */}
+    <div style={{ flex: 1, display: 'flex' }}>
+      {renderAtual === 1 && <Customizar />}
+      {renderAtual === 2 && <Dash />}
+      {renderAtual === 3 && <Pdm />}
+      {renderAtual === 4 && <Maq />}
+
+      
     </div>
+  </div>
+</div>
+
   );
 }
 
