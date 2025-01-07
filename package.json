@@ -31,10 +31,11 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "electron": "wait-on http://localhost:3000 && electron .",
-    "electron-dev": "concurrently \"npm:start\" \"npm:electron\""
-  },
+  "start": "concurrently \"npm run start:react\" \"npm run start:electron\"",
+  "start:react": "react-scripts start",
+  "start:electron": "electron public/electron.js"
+
+},
   "eslintConfig": {
     "extends": [
       "react-app",
