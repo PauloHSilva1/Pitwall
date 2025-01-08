@@ -6,7 +6,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Sensores from '../elements/Sensores';
 import { styled } from '@mui/system';
 import Plot from "react-plotly.js";
-import { matrix, multiply, inv, ones } from 'mathjs';  // Importando funções necessárias
+import { matrix, multiply, inv, transpose } from 'mathjs';  // Importando funções necessárias
 
 
 
@@ -61,33 +61,41 @@ const StyledButton = styled(Button)`
   }
 `;
 
-
-function lagrangePolynomialFormatted(xValues, yValues) {
-  const n = xValues.length;
-  let coefficients = Array(n).fill(0);
-
-  for (let i = 0; i < n; i++) {
-    let termCoefficients = Array(n).fill(0);
-    termCoefficients[0] = 1;
-
-    let denominator = 1;
-    for (let j = 0; j < n; j++) {
-      if (i !== j) {
-        denominator *= xValues[i] - xValues[j];
-        for (let k = n - 1; k > 0; k--) {
-          termCoefficients[k] -= termCoefficients[k - 1] * xValues[j];
-        }
-        termCoefficients[0] *= -xValues[j];
-      }
-    }
-
-    const factor = yValues[i] / denominator;
-    coefficients = coefficients.map(
-      (coef, idx) => coef + termCoefficients[idx] * factor
-    );
+function regressaoPolinomial(xValues, yValues, grau) {
+  if (xValues.length !== yValues.length) {
+    throw new Error("Os arrays de valores X e Y devem ter o mesmo comprimento.");
   }
 
-  // Formata os coeficientes no estilo a0 + a1x + a2x^2 + ...
+  const n = xValues.length;
+
+  // Matriz de Vandermonde (n x (grau+1))
+  let A = [];
+  for (let i = 0; i < n; i++) {
+    A.push([]);
+    for (let j = 0; j <= grau; j++) {
+      A[i].push(Math.pow(xValues[i], j));
+    }
+  }
+
+  // Convertendo A e Y para matrizes do Math.js
+  const A_matrix = matrix(A);
+  const Y_matrix = matrix(yValues);
+
+  // Calcula (A^T * A)⁻¹ * A^T * Y
+  try {
+    const AT = transpose(A_matrix);
+    const ATA = multiply(AT, A_matrix);
+    const ATA_inv = inv(ATA);
+    const coefficients = multiply(multiply(ATA_inv, AT), Y_matrix);
+
+    return coefficients.toArray(); // Retorna os coeficientes como um array
+  } catch (error) {
+    console.error("Erro ao calcular os coeficientes:", error);
+    return [];
+  }
+}
+
+function regressaoPolynomialFormatted(coefficients) {
   return coefficients
     .map((coef, idx) => {
       if (Math.abs(coef) < 1e-6) return ""; // Ignora coeficientes muito pequenos
@@ -100,73 +108,37 @@ function lagrangePolynomialFormatted(xValues, yValues) {
     .join(" + ");
 }
 
-function lagrangeInterpolation(xValues, yValues, x) {
-  let result = 0;
-  const n = xValues.length;
-
-  for (let i = 0; i < n; i++) {
-    let term = yValues[i];
-    for (let j = 0; j < n; j++) {
-      if (i !== j) {
-        term *= (x - xValues[j]) / (xValues[i] - xValues[j]);
-      }
-    }
-    result += term;
-  }
-
-  return result;
-}
-
 function Customizar() {
   const [xValues, setXValues] = useState([]);
   const [yValues, setYValues] = useState([]);
   const [checked, setChecked] = useState(Array(20).fill(false)); // Controle dos checkboxes
   const [plotData, setPlotData] = useState([]);
   const [polynomial, setPolynomial] = useState(""); // Armazena o polinômio gerado
-
-  const handleOpenSensor = async () => {
-    try {
-      // Abre o arquivo usando a API do Electron
-      const { filePath, fileContent } = await window.electronAPI.openSensor();
-
-      // Verifica se o conteúdo do arquivo foi retornado
-      if (fileContent) {
-        try {
-          // Tenta analisar o conteúdo como JSON
-          const jsonData = JSON.parse(fileContent);
-          //fazer a logica de tratamento do sensor
-        } catch (jsonError) {
-          console.error("Erro ao parsear o conteúdo do arquivo como JSON:", jsonError);
-        }
-      } else {
-        console.warn("O arquivo não contém conteúdo válido.");
-      }
-    } catch (error) {
-      // Log de erros no processo de abertura do arquivo
-      console.error("Erro ao abrir o arquivo:", error);
-    }
-  };
+  const [grau, setGrau] = useState(3); // Grau do polinômio
 
   const handlePlot = () => {
     const validX = xValues.filter((_, i) => checked[i] && xValues[i] !== "");
     const validY = yValues.filter((_, i) => checked[i] && yValues[i] !== "");
 
-    if (validX.length < 2 || validY.length < 2) {
-      alert("Forneça pelo menos dois pontos válidos para interpolação.");
+    if (validX.length <= grau) {
+      alert(`Forneça pelo menos ${grau + 1} pontos válidos para a regressão.`);
     } else {
       const xmin = Math.min(...validX);
       const xmax = Math.max(...validX);
 
       const interpolatedX = [];
-      const interpolatedY = [];
       const step = (xmax - xmin) / 100;
 
       for (let x = xmin; x <= xmax; x += step) {
         interpolatedX.push(x);
-        interpolatedY.push(lagrangeInterpolation(validX, validY, x));
       }
 
-      const polynomialStr = lagrangePolynomialFormatted(validX, validY);
+      const coefficients = regressaoPolinomial(validX, validY, grau);
+      const polynomialY = interpolatedX.map((x) =>
+        coefficients.reduce((acc, coef, idx) => acc + coef * Math.pow(x, idx), 0)
+      );
+
+      const polynomialStr = regressaoPolynomialFormatted(coefficients);
 
       setPlotData([
         {
@@ -179,11 +151,11 @@ function Customizar() {
         },
         {
           x: interpolatedX,
-          y: interpolatedY,
+          y: polynomialY,
           type: "scatter",
           mode: "lines",
           line: { color: "blue" },
-          name: "Interpolação",
+          name: `Regressão Polinomial (grau ${grau})`,
         },
       ]);
 
@@ -216,48 +188,32 @@ function Customizar() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column" }}>
-  {[...Array(20)].map((_, index) => (
-    <StyledTextField1
-      key={index}
-      value={xValues[index] !== undefined && xValues[index] !== null ? xValues[index] : ""}
-      onChange={(e) => {
-        const value = e.target.value; // Permite qualquer entrada do usuário
-        const updatedXValues = [...xValues];
-        updatedXValues[index] = value; // Armazena diretamente o valor
-        setXValues(updatedXValues);
-      }}
-      onBlur={() => {
-        // Converte para número após perder o foco (se for válido)
-        const updatedXValues = xValues.map((val) =>
-          val !== "" && !isNaN(parseFloat(val)) ? parseFloat(val) : ""
-        );
-        setXValues(updatedXValues);
-      }}
-    />
-  ))}
-</div>
+        {[...Array(20)].map((_, index) => (
+          <StyledTextField1
+            key={index}
+            value={xValues[index] || ""}
+            onChange={(e) => {
+              const updatedXValues = [...xValues];
+              updatedXValues[index] = e.target.value;
+              setXValues(updatedXValues);
+            }}
+          />
+        ))}
+      </div>
 
-<div style={{ display: "flex", flexDirection: "column", paddingLeft: "0.4vw" }}>
-  {[...Array(20)].map((_, index) => (
-    <StyledTextField1
-      key={index}
-      value={yValues[index] !== undefined && yValues[index] !== null ? yValues[index] : ""}
-      onChange={(e) => {
-        const value = e.target.value;
-        const updatedYValues = [...yValues];
-        updatedYValues[index] = value;
-        setYValues(updatedYValues);
-      }}
-      onBlur={() => {
-        const updatedYValues = yValues.map((val) =>
-          val !== "" && !isNaN(parseFloat(val)) ? parseFloat(val) : ""
-        );
-        setYValues(updatedYValues);
-      }}
-    />
-  ))}
-</div>
-
+      <div style={{ display: "flex", flexDirection: "column", paddingLeft: "0.4vw" }}>
+        {[...Array(20)].map((_, index) => (
+          <StyledTextField1
+            key={index}
+            value={yValues[index] || ""}
+            onChange={(e) => {
+              const updatedYValues = [...yValues];
+              updatedYValues[index] = e.target.value;
+              setYValues(updatedYValues);
+            }}
+          />
+        ))}
+      </div>
 
       <div style={{ marginLeft: "20px" }}>
         <Card style={{ maxHeight: "58vh", maxWidth: "30vw" }}>
@@ -265,7 +221,7 @@ function Customizar() {
             <Plot
               data={plotData}
               layout={{
-                title: "Gráfico de Interpolação",
+                title: "Gráfico de Regressão Polinomial",
                 xaxis: { title: "x" },
                 yaxis: { title: "y" },
                 width: 420,
@@ -276,18 +232,13 @@ function Customizar() {
         </Card>
         {polynomial && (
           <Typography variant="body1" style={{ marginTop: "10px", color: "green" }}>
-            Função Interpolada: {polynomial}
+            Função Ajustada: {polynomial}
           </Typography>
         )}
       </div>
 
       <div style={{ padding: "5vw", display: "flex", flexDirection: "column" }}>
-        <StyledButton variant="contained">Salvar sensor</StyledButton>
-        <StyledButton variant="contained" onClick={handleOpenSensor}>
-          Importar sensor
-        </StyledButton>
-        <StyledButton variant="contained">Exportar sensor</StyledButton>
-        <StyledButton style={{ marginTop: "30vh" }} variant="contained" onClick={handlePlot}>
+        <StyledButton variant="contained" onClick={handlePlot}>
           Plotar
         </StyledButton>
       </div>
