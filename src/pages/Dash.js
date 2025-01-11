@@ -55,8 +55,9 @@ function Dash(){
   };
  
 
-    return(<div style={{display:'flex',flexDirection:'row',paddingTop:'18vh', paddingLeft:'20vw',justifyContent:'right',alignItems:'center'}}>
-        <img style={{maxWidth:'30vw',maxHeight:'35vh'}} src={telaDisplay} alt='IMG do display não encontrada'/>
+    return(
+    <div style={{display:'flex',flexDirection:'row', paddingLeft:'20vw',justifyContent:'right',alignItems:'center'}}>
+        <img style={{maxWidth:'40vw',maxHeight:'40vh'}} src={telaDisplay} alt='IMG do display não encontrada'/>
         <div style={{display:'flex',flexDirection:'column',paddingLeft:'3vw'}}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <p style={{}}>Dado1: {projectData.config.data1}</p>
@@ -88,7 +89,7 @@ function Dash(){
         <Sensores name={'data5'} value={projectData.config.data5} onChange={handleChange} />
         </div>
         <div style={{marginTop:'3vh'}}>
-        <Button style={{marginRight:'1vw',maxwidth:'5vw',maxHeight:'5vh'}} variant='contained' onClick={handleSave}>Save</Button>
+        <Button style={{marginLeft:'7.5vw',marginRight:'1vw',maxwidth:'5vw',maxHeight:'5vh'}} variant='contained' onClick={handleSave}>Save</Button>
         <Button style={{maxwidth:'5vw',maxHeight:'5vh'}} variant='contained' onClick={handleSend}>Send</Button>
         </div>
       </div>

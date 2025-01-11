@@ -164,7 +164,7 @@ function Customizar() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "row", paddingTop: "8vh", paddingLeft: "10vw", justifyContent: "center", alignItems: "center" }}>
+    <div style={{ display: "flex", flexDirection: "row", paddingLeft: "10vw", justifyContent: "center", alignItems: "center" }}>
       <div>
         {[...Array(20)].map((_, index) => (
           <Typography key={index} style={{ height: "2.88vh", marginTop: "0.03vh", marginRight: "0.3vw" }}>
